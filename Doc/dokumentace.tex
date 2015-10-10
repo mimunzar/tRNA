@@ -1,0 +1,127 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[czech]{babel}
+\usepackage[a4paper, top=2cm, bottom=2cm, left=2cm, right=2cm]{geometry}
+\usepackage[IL2]{fontenc}
+\usepackage{url}
+\usepackage{indentfirst}
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{color}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage[table,usenames,dvipsnames,svgnames]{xcolor}
+\usepackage[unicode,hyperindex,plainpages=false,pdftex]{hyperref}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}   
+    \hypersetup{
+          colorlinks=true, 
+          linkcolor=Red, 
+          citecolor=Red, 
+          filecolor=magenta, 
+          urlcolor=TealBlue
+    }
+
+\newcommand{\todo}[1]{\textcolor{red}{[[TODO: #1]]}}
+\newcommand{\setHelper}[1]{\left\lbrace #1 \right\rbrace}
+\newlength{\skipeqarray}
+\setlength{\skipeqarray}{0.4cm}
+
+
+
+
+\title{Vyhledávání tRNA genů}
+\author{Milan Munzar \\
+\normalsize{\href{mailto:xmunza00@stud.fit.vutbr.cz}{xmunza00@stud.fit.vutbr.cz}}}
+\date{}
+
+\definecolor{lightgray}{rgb}{0.9, 0.9, 0.9}
+\newtheorem{veta}{Věta}
+\newtheorem{definition}{Definice}
+\newtheorem{priklad}{Příklad}
+\newfloat{algorithm}{h}{lop}
+\floatname{algorithm}{Algoritmus}
+\renewcommand{\algorithmiccomment}[1]{\hfill\# #1}
+\algrenewcommand\alglinenumber[1]{{\footnotesize#1}}
+    
+\begin{document}
+\maketitle
+
+\section{Úvod}
+Tento text popisuje návrh a implementaci algoritmu na vyhledávání tRNA genů uvnitř genomu. Program je napsán v jazyce Python 2.7 a tvoří ho dva skripty. Skript \texttt{get\_tRNA.py} nalezne tRNA geny a skript \texttt{compare\_tRNA.py} porovná nalezené geny s geny z Genomic tRNA Database(GTD). Program je testován na záznamech k bakterii Escherichia coli CFT073.
+
+\section{Implementace vyhledávání tRNA genů}
+Pro hledání tRNA genů jsem využil konzervanosti hledaných oblastí~\cite{saks}. Tato vlastnost dovoluje sestavit regulární výraz a aplikovat jej na celý genom v sense i anti-sense směru (alg:~\ref{re}). Hledání tRNA genů v anti-sense směru vyžaduje vytvoření komplementárního řetězce a jeho otočení. Výhoda této implementace je, že algoritmus pracuje s lineární časovou složitosti. 
+
+Algoritmus je implementován v souboru \texttt{get\_tRNA.py} a využívá možností knihovny \texttt{re}. Vstupem programu je soubor se sekvencí genomu ve formátu fasta. Výstupem na standartní výstup je množina záznamů ve formátu multifasta, odpovídající nalezeným tRNA genům.
+
+\begin{algorithm}[H]
+\caption{Použitý regulární výraz na hledání tRNA genů}
+\label{re}
+\begin{algorithmic}[1]
+\State $pattern = """$
+\State $[AUCG]\{13\}$ \quad \Comment{1 - 13}
+\State $A$ \quad \Comment{14}
+\State $(A|G)$ \quad \Comment{15}
+\State $[AUCG]\{1,3\}$ \quad \Comment{16 - 17A}
+\State $G$ \quad \Comment{18}
+\State $[AUCG]\{11,14\}$ \quad \Comment{19 - 31}
+\State $(A|C|U)$ \quad \Comment{32}
+\State $U$ \quad \Comment{33}
+\State $(?P<Anticodon>[AUCG]\{3\})$ \quad \Comment{34 - 36 Anticodon}
+\State $(A|G)$ \quad \Comment{37}
+\State $[AUCG]\{11,31\}$ \quad \Comment{38 - 52}
+\State $GUUC$ \quad \Comment{53 - 56}
+\State $(G|A)$ \quad \Comment{57}
+\State $A$ \quad \Comment{58}
+\State $[AUCG]$ \quad \Comment{59}
+\State $(U|C)$ \quad \Comment{60}
+\State $C$ \quad \Comment{61}
+\State $[AUCG]\{12\}$ \quad \Comment{62 - 73}
+\State $CCA$ \quad \Comment{74 - 76}
+\State $"""$
+\end{algorithmic}
+\end{algorithm}  
+
+\section{Výsledky porovnání s GTD}
+Požadavkem pro úspěšné vyřešení problému je dosáhnutí alespoń 80\% překryvu se záznamy GTD kódujících 20 standartních aminokyselin se skóre alespoń 60. Dalším požadavkem je, že program by neměl vypisovat více než 20\% falešných výskytů (záznamy jež nejsou v GTD). Oba tyto požadavky jsou splněny jak je vidět na výstupu programu:
+
+\begin{verbatim}
+$ ./compare_tRNA.py seq/found_tRNA.multifasta seq/known_tRNA.multifasta
+tRNA_6|AspCUA|630445|76|+
+tRNA_14|AlaCGA|1027722|87|+
+tRNA_75|LeuAAC|1812665|90|-
+tRNA_76|SerUCA|1742003|83|-
+tRNA_77|ArgGCG|1697066|89|-
+tRNA_90|SerAGC|408294|93|-
+
+Escherichia_coli_CFT073_chr (236813-236889)  Glu (TTC) 77 bp  Sc: 49.26
+Escherichia_coli_CFT073_chr (434982-435062)  Undet (???) 81 bp  Sc: 28.45
+Escherichia_coli_CFT073_chr (1211152-1211228)  Arg (TCT) 77 bp  Sc: 59.54
+Escherichia_coli_CFT073_chr (1342387-1342463)  Arg (TCG) 77 bp  Sc: 48.60
+Escherichia_coli_CFT073_chr (4274308-4274398)  SeC(p) (TCA) 91 bp  Sc: 75.19
+
+neporovnaných get_tRNA.py: 6/90
+neporovnaných GTD: 5/89
+\end{verbatim}
+
+Program produkuje 7\% falešných výskytů a nenalezne 6\% záznamů v GTD. Všechny nenalezené záznamy obsahují bud' nestandartní aminokyselinu nebo mají skóre nižší jak 60. 
+
+\section{Závěr}
+Podařilo se mi naimplementovat algoritmus pro hledání tRNA genů. Program splńuje požadavky ze zadání projektu. Výskyt falešných položek a nenalezení všech záznamů z GTD je způsobeno jednoduchostí použité metody. Falešné výskyty by se mohli redukovat přidáním dodatečné filtrace nalezených záznamů. Pro nalezení většího počtu záznamů z GTD je možno vylepšit stávající algoritmus, případně použít složitější metodu hledání tRNA genů.
+
+\begin{thebibliography}{99}
+
+\bibitem{saks}
+  SAKS, Margaret E., CONERY, John S.
+  \emph{Anticodon-dependent conservation of bacterial tRNA gene sequences.}
+  RNA 13.5 (2007): 651-660.
+
+\end{thebibliography}
+
+\end{document}
